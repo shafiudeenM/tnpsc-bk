@@ -12,10 +12,12 @@ import { progressRouter } from './routes/progress.js';
 import { uploadRouter }   from './routes/upload.js';
 import { healthRouter }   from './routes/health.js';
 import { authMiddleware } from './middleware/auth.js';
+import { embed }          from './services/embeddings.js';
 
 const app  = express();
-app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
+
+app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(morgan('dev'));
@@ -26,17 +28,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Rate limiting — 40 req/min per IP
 app.use('/api/', rateLimit({
   windowMs: 60_000, max: 40,
   standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many requests. Slow down!' },
 }));
 
-// Public
 app.use('/api/health', healthRouter);
 
-// Protected — all routes below require a valid Supabase JWT
 app.use('/api/ask',      authMiddleware, askRouter);
 app.use('/api/mcq',      authMiddleware, mcqRouter);
 app.use('/api/progress', authMiddleware, progressRouter);
@@ -48,4 +47,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => console.log(`🚀 TNPSC Guru v2 running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 TNPSC Guru v2 running on port ${PORT}`);
+  console.log('⏳ Pre-warming embedding model...');
+  embed('warmup')
+    .then(() => console.log('✅ Embedding model ready — first request will be fast'))
+    .catch(err => console.error('⚠️ Warmup failed:', err.message));
+});
