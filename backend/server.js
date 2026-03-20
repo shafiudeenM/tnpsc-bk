@@ -14,6 +14,7 @@ import { healthRouter }   from './routes/health.js';
 import { authMiddleware } from './middleware/auth.js';
 
 const app  = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 app.use(helmet());
